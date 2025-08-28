@@ -14,6 +14,9 @@ __pycache__/
 .prettierignore
 
 # -------------------------------------
+# git files
+.git/
+# -------------------------------------
 # Virtual environments (Windows-style and Unix-style)
 .venv/
 venv/
