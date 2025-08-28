@@ -1,0 +1,72 @@
+""" 
+This module provides utility functions as part of the {{ package_slug }} package for the {{ project_name }} project.
+It includes tools for validating fs base names, organizing file paths and generating fs names.
+"""
+
+__version__ = "0.1.0"
+
+import os
+import re
+from matplotlib import pyplot as plt
+
+#: Regular expression pattern for validating basic filesystem names (alphanumeric, underscores, hyphens, spaces).
+BASIC_SAFE_PATTERN = re.compile(r'^[A-Za-z0-9_\- .]+$')
+
+
+def get_unique_plot_filename(base_name: str, extension: str = "png") -> str:
+	r"""
+	Generates a unique filename by appending a number if the base name already exists.
+	
+	Parameters:
+		base_name (str): Base name for the file (relative or absolute path without extension).
+		extension (str): File extension (default is "png").
+		
+	Returns:
+		str: Unique filename with the specified base name and extension.
+	"""
+	
+	filename = f"{base_name}.{extension}"
+	if not os.path.exists(filename):
+		return filename
+	i = 1
+	while True:
+		filename = f"{base_name}({i}).{extension}"
+		if not os.path.exists(filename):
+			return filename
+		i += 1
+
+
+def is_valid_fs_name(name: str) -> bool:
+	r"""
+	Checks if name is a valid filesystem name (not empty, alphanumeric, underscores, hyphens, and spaces).
+	
+	Parameters:
+		name (str): Name to validate.
+	
+	Returns:
+		bool: True if the name is valid, False otherwise.
+	"""
+	if not isinstance(name, str):
+		return False
+	if not bool(BASIC_SAFE_PATTERN.match(name)):
+		return False
+	return name == name.strip() and not name.startswith('.') and not name.endswith('.')
+
+
+def is_valid_plt_extension(extension: str) -> bool:
+	r"""
+	Checks if the given file extension is supported by Matplotlib for saving figures.
+	
+	Parameters:
+		extension (str): File extension to check (e.g., 'png', 'pdf').
+		
+	Returns:
+		bool: True if the extension is valid, False otherwise.
+	"""
+	valid_plt_extensions = plt.gcf().canvas.get_supported_filetypes().keys()
+	if not isinstance(extension, str):
+		return False
+	extension = extension.lstrip('.')  # Remove leading dot if present
+	if extension.lower() in valid_plt_extensions:
+		return True
+	return False

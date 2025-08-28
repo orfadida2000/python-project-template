@@ -1,0 +1,91 @@
+# `{{ project_name }}` Project
+
+Summary about the project.
+
+## 📚 Overview
+Example of project overview:
+- **Core Implementation**: 
+  module.
+- **Plotting Utilities**: 
+- **Documentation**:
+- **Type Annotations**: 
+- **Modular Design**: The project is structured to allow easy extension and testing of different components.
+- **Easy Setup**: Simple setup instructions with a virtual environment and dependency management
+  via **[requirements.txt](requirements.txt)**.
+- **Results Storage**: 
+- **Testing**: 
+
+## 📁 Project Structure
+Example of project structure:
+```
+{{ project_name }}/              
+├── {{ package_slug }}/            # Top level package 
+│   ├── __init__.py                # Package init
+│   ├── plotting.py                # Plooting functionalities.                     
+│   └── utilities.py               # General-purpose utilities
+│
+├── workspace/
+│   ├── __init__.py                # Marks 'workspace' as a Python package
+│   └── scripts/
+│       ├── __init__.py            # Package init
+│       └── main.py                # Entry script for running experiments
+│
+├── LICENSE                        # License 
+├── README.md                      # Project documentation (you are here)
+├── .gitignore                     # .gitignore file for a potential github repository 
+└── requirements.txt               # Python dependencies
+```
+
+## 🛠 Setup
+
+### 1. Create Virtual Environment
+
+#### 🐧 Linux / 🍎 macOS:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+#### 🪟 Window:
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+### 2. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+## ▶ How to Run
+
+From the project root (**[{{ project_name }}/](.)**), run:
+
+```bash
+python -m workspace.scripts.main
+```
+
+This will execute the main REINFORCE simulation pipeline defined in **[main.py](workspace/scripts/main.py)**.
+
+## 📈 Results
+
+The results of the REINFORCE simulations will be saved in the `workspace/plots/` directory.   
+
+## 🧪 Features
+Example of project features:
+- Plots learning curves and statistics.
+
+## 📄 License
+
+{{ license_name }}.
+See **[LICENSE](LICENSE)** for details.
+
+## 👤 Author
+
+- **Name:** Or Fadida
+- **Email:** [or@fadida.net](mailto:or@fadida.net)
+- **GitHub:** [orfadida2000](https://github.com/orfadida2000)
+

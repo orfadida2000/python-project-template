@@ -1,0 +1,66 @@
+"""
+This module defines all visualization functions used as part of the {{ package_slug }} package for the {{ project_name }} project.
+It includes functions that generate plot figures, saving figures to disk.
+"""
+
+__version__ = "0.1.0"
+
+from typing import List
+from matplotlib import figure, axes
+import os
+from {{ package_slug }}.utilities import is_valid_fs_name, is_valid_plt_extension, get_unique_plot_filename
+
+#: Type alias for matplotlib Figure object, used for plotting.
+MPLFig = figure.Figure
+
+#: Type alias for matplotlib Axes object, used for plotting.
+Axes = axes.Axes
+
+
+def figure_saving_assertion(filename: str, directory_path_lst: List[str], extension: str, dpi: int) -> None:
+	r"""
+	Asserts that the provided filename, directory path list, extension, and DPI are valid for saving a figure.
+	
+	Parameters:
+		filename (str): Base name for the file (without extension).
+		directory_path_lst (List[str]): List of folder names forming the relative path.
+		extension (str): File extension for saving the plot (e.g., 'png', 'pdf').
+		dpi (int): Resolution in dots per inch for saving the figure.
+	"""
+	assert is_valid_fs_name(
+			filename), "File base name and directory name must be valid file system names."
+	assert isinstance(directory_path_lst, list) and all(
+			is_valid_fs_name(directory) for directory in
+			directory_path_lst), "directory_path_lst must be a list of valid file system names."
+	assert is_valid_plt_extension(
+			extension), "Extension must be a valid matplotlib file extension (e.g., 'png', 'pdf')."
+	assert isinstance(dpi, int) and dpi > 0, "DPI must be a positive integer."
+
+
+def save_figure(fig: MPLFig, filename: str, directory_path_lst: List[str] = None, extension: str = "png", dpi: int = 300) -> None:
+	r"""
+	Saves a Matplotlib figure to a specified path with a unique filename.
+	
+	Parameters:
+		fig (MPLFig): The Matplotlib figure to save.
+		filename (str): Base name for the file (without extension).
+		directory_path_lst (List[str]): List of folder names forming the relative path (default is ["Plots"]).
+		extension (str): File extension for saving the plot (e.g., 'png', 'pdf') (default is "png").
+		dpi (int): Resolution in dots per inch for saving the figure (default is 300).
+	"""
+	assert isinstance(fig, MPLFig), "fig must be a Matplotlib Figure instance."
+	if directory_path_lst is None:
+		directory_path_lst = ["Plots"]
+
+	figure_saving_assertion(filename, directory_path_lst, extension, dpi)
+	extension = extension.lstrip('.').lower()  # Ensure the extension is lowercase and without leading dot
+	if len(directory_path_lst) > 0:
+		directory_path = os.path.join(*directory_path_lst)
+		os.makedirs(directory_path, exist_ok=True)  # Ensure the plots directory exists
+		file_path = os.path.join(directory_path, filename)
+	else:
+		file_path = filename
+	# Save the figure with a unique filename
+	final_path = get_unique_plot_filename(file_path, extension)
+	fig.savefig(final_path, dpi=dpi)
+

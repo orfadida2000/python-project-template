@@ -1,0 +1,276 @@
+_min_copier_version: "9.0.0"
+
+_subdirectory: template
+
+# Auto-detect the destination folder name as the project name (hidden prompt).
+project_name:
+  type: str
+  default: "{{ _copier_conf.dst_path | basename }}"
+  when: false
+  help: "Name of the project (derived from the destination folder name)"
+
+# Top-level Python package (snake_case), pre trimming.
+package_slug_pre:
+  type: str
+  default: "top_package"
+  help: "Top-level Python package name (lower_case_with_underscores)"
+  validator: >-
+    {% if not (package_slug_pre | trim | regex_search('^[a-z_][a-z0-9_]*$')) %}
+    package_slug must start with a lowercase letter or underscore, followed by any lowercase letters, digits, or underscores.
+    {% endif %}
+
+# Top-level Python package (snake_case), post trimming.
+package_slug:
+  type: str
+  default: "{{ package_slug_pre | trim }}"
+  when: false
+  help: "Top-level Python package name (lower_case_with_underscores)"
+
+# Copyright owner name, pre trimming.
+author_name_pre:
+  type: str
+  default: "Your Name"
+  help: "Copyright holder's full name"
+  validator: >-
+    {% if not (author_name_pre | trim | regex_search('^[A-Za-zÀ-ÖØ-öø-ÿ0-9&.,\'\\-\\s]+$')) %}
+    author_name must contain only letters, digits, spaces, and allowed punctuation.
+    {% endif %}
+
+# Copyright owner name, post trimming.
+author_name:
+  type: str
+  default: "{{ author_name_pre | trim }}"
+  when: false
+  help: "Copyright holder's full name"
+
+# Optional organization (some BSD variants mention it; safe to leave empty), pre trimming.
+organization_pre:
+  type: str
+  default: ""
+  help: "Organization name (optional; leave empty if not applicable)"
+  validator: >-
+    {% if organization_pre and not (organization_pre | trim | regex_search('^[A-Za-zÀ-ÖØ-öø-ÿ0-9&.,\'\\-\\s]+$')) %}
+    organization must contain only letters, digits, spaces, and allowed punctuation.
+    {% endif %}
+
+# Optional organization (some BSD variants mention it; safe to leave empty), post trimming.
+organization:
+  type: str
+  default: "{{ organization_pre | trim }}"
+  when: false
+  help: "Organization name (optional; leave empty if not applicable)"
+
+# Choose the license (must match the filenames in licenses/)
+license_key:
+  type: str
+  help: "Which license to include"
+  choices:
+    - ["MIT License", mit]
+    - ["Apache License 2.0", apache-2.0]
+    - ["BSD 3-Clause 'New' or 'Revised' License", bsd-3-clause]
+    - ["GNU General Public License v3.0", gpl-3.0]
+    - ["GNU Lesser General Public License v3.0", lgpl-3.0]
+    - ["GNU Affero General Public License v3.0", agpl-3.0]
+    - ["Mozilla Public License 2.0", mpl-2.0]
+    - ["Eclipse Public License 2.0", epl-2.0]
+    - ["BSD 2-Clause 'Simplified' License", bsd-2-clause]
+    - ["The Unlicense", unlicense]
+  default: mit
+
+# compute the human-friendly name based on the key
+license_name:
+  type: str
+  help: "Human-friendly name of the license"
+  when: false
+  default: >-
+    {{
+      {
+        'mit': 'MIT License',
+        'apache-2.0': 'Apache License 2.0',
+        'bsd-3-clause': 'BSD 3-Clause License',
+        'bsd-2-clause': 'BSD 2-Clause License',
+        'gpl-3.0': 'GNU General Public License v3.0',
+        'lgpl-3.0': 'GNU Lesser General Public License v3.0',
+        'agpl-3.0': 'GNU Affero General Public License v3.0',
+        'mpl-2.0': 'Mozilla Public License 2.0',
+        'epl-2.0': 'Eclipse Public License 2.0',
+        'unlicense': 'The Unlicense'
+      }[license_key]
+    }}
+
+# Year to include in LICENSE files
+license_year:
+  type: int
+  default: "{{ '%Y' | strftime }}"
+  help: "Copyright year"
+
+# Whether to create a new requirements.txt file
+edit_deps:
+  type: bool
+  help: "Create requirements.txt file from scratch?"
+  default: true
+  choices:
+    - ["Yes - create from scratch", true]
+    - ["No - keep the existing file (if any)", false]
+
+dependencies:
+  type: str
+  help: "Pick PyPI dependencies to install"
+  when: "{{ edit_deps }}"
+  choices:
+    - numpy
+    - pandas
+    - matplotlib
+    - scipy
+    - scikit-learn
+    - pipreqs
+    - pytest
+    - seaborn
+    - jupyterlab
+    - notebook
+    - ipykernel
+    - ipywidgets
+    - jupyterlab-widgets
+  multiselect: true
+  default: []
+
+custom_deps:
+  type: str
+  default: ""
+  help: "Add comma-separated PyPI package names (case insensitive alphanumeric; may include ., _ or -; start/end alphanumeric). One optional space after each comma. pip will be ignored, so do not include it here."
+  when: "{{ edit_deps }}"
+  validator: >-
+    {% set NAME = '([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9._-]*[A-Za-z0-9])' %}
+    {% set TRAIL = '(?:\\r\\n|\\s)' %}
+    {% set PAT  = '^' ~ NAME ~ '(?:, ?' ~ NAME ~ ')*,?' ~ TRAIL ~ '?\\Z' %}
+    {% if custom_deps and not (custom_deps | regex_search(PAT)) %}
+    Invalid value for custom_deps.
+    Expected a comma-separated list of PyPI distribution names:
+      - Only alphanumeric plus ".", "_" or "-"
+      - Must start and end with an alphanumeric
+      - At most one ASCII space after each comma
+      - Optional single trailing whitespace OR a single CRLF pair
+    {% endif %}
+
+unique_deps:
+  type: yaml
+  when: false
+  default: >-
+    {%- set raw_custom = (custom_deps | trim) -%}
+    {%- set raw_custom = raw_custom | replace(', ', ',') -%}
+    {%- set raw_custom = raw_custom.rstrip(',') -%}
+    {%- set raw_custom = raw_custom | regex_replace('[._-]+', '-') -%}
+    {%- set raw_custom = (raw_custom | lower) -%}
+    {%- set custom_list = raw_custom.split(',') if raw_custom else [] -%}
+    {%- set merged = dependencies + custom_list -%}
+    {%- set merged = merged | unique | list -%}
+    {%- set filtered = merged | reject('in', ['pip', 'pip3']) | list -%}
+    {{ filtered }}
+
+
+version_spec_deps:
+  type: yaml
+  help: "Pick the dependencies you want to add a version specifier for (others stay unspecified, i.e. latest stable version)."
+  when: "{{ edit_deps and unique_deps }}"
+  choices: |-
+    {% if unique_deps %}
+    {%- for dep in unique_deps -%}
+    -  "{{ dep }}"
+    {% endfor -%}
+    {% else %}
+    []
+    {% endif %}
+  multiselect: true
+  default: []
+
+setup_venv:
+  type: bool
+  help: "Set up a virtual environment (i.e. .venv/) for the project (if not already present) and install dependencies (if there are any to install)?"
+  default: true
+  choices:
+    - ["Yes - create a virtual environment and install dependencies", true]
+    - ["No - skip virtual environment setup", false]
+
+upgrade_deps:
+  type: bool
+  help: "Upgrade all dependencies (if there are any to install) according to version specifiers (instead of only installing missing)?"
+  default: false
+  when: "{{ setup_venv }}"
+  choices:
+    - ["Yes - upgrade according to version specifiers", true]
+    - ["No - install only missing", false]
+
+
+# Files or directories that exist inside the project template that are to be excluded
+_exclude:
+  # -------------------------------------
+  # Conditional requirements.txt file
+  - "{% if not edit_deps -%}requirements.txt{% endif %}"
+
+  # -------------------------------------
+  # Byte-compiled / optimized files
+  - "**/__pycache__"
+  - "**/*.py[cod]"
+  - "**/*$py.class"
+
+  # -------------------------------------
+  # Virtual environments (Windows-style and Unix-style)
+  - "**/.venv"
+  - "**/venv"
+  - "**/env"
+  - "**/ENV"
+  - "**/env.bak"
+  - "**/venv.bak"
+
+  # -------------------------------------
+  # OS junk files
+  - "**/.DS_Store"
+  - "**/Thumbs.db"
+
+  # -------------------------------------
+  # Test / coverage / cache
+  - "**/.tox"
+  - "**/.nox"
+  - "**/.pytest_cache"
+  - "**/.coverage"
+  - "**/.coverage.*"
+  - "**/.cache"
+  - "**/nosetests.xml"
+  - "**/coverage.xml"
+  - "**/*.cover"
+  - "**/*.py,cover"
+  - "**/.hypothesis"
+
+  # -------------------------------------
+  # Git local repository
+  - "**/.git"
+
+  # -------------------------------------
+  # Copier configuration files
+  - "**/copier.*"
+
+# Tasks to run before finishing the writing of the project
+_tasks:
+  - command:
+      [
+        "python3",
+        "{{ _copier_conf.src_path }}/tasks/license_year_validation.py",
+        "--year",
+        "{{ license_year }}",
+      ]
+  - command: 
+      [
+        "python3", 
+        "{{ _copier_conf.src_path }}/tasks/reqs_specs_file_setup.py",
+        "{{ version_spec_deps | join(',') }}",
+      ]
+    when: "{{ edit_deps and version_spec_deps }}"
+  - command: ["python3", "{{ _copier_conf.src_path }}/tasks/venv_setup.py"]
+    when: "{{ setup_venv and not upgrade_deps }}"
+  - command:
+      [
+        "python3",
+        "{{ _copier_conf.src_path }}/tasks/venv_setup.py",
+        "--upgrade",
+      ]
+    when: "{{ setup_venv and upgrade_deps }}"
