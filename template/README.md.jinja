@@ -1,6 +1,6 @@
 # `{{ project_name }}` Project
 
-Summary about the project.
+Summary about the project.<br>
 {{ [10, 20] | paragraph }}
 
 ## 📚 Overview
@@ -78,18 +78,19 @@ The results of the {{ project_name }} simulations will be saved in the `workspac
 ## 🧪 Features
 Example of project features:
 - Plots learning curves and statistics.
+{{ [5, 8, '- '] | paragraph }}
 
 ## 📄 License
 
-{{ license_name }}.
+{{ license_name }}.<br>
 See **[LICENSE](LICENSE)** for details.
 
 ## 👤 Author
 
 - **Name:** {{ author_name }}
-{%- if author_email -%}
+{% if author_email -%}
 - **Email:** [{{ author_email }}](mailto:{{ author_email }})
-{%- endif -%}
-{%- if author_github -%}
+{% endif -%}
+{% if author_github -%}
 - **GitHub:** [{{ author_github }}](https://github.com/{{ author_github }})
-{%- endif -%}
+{% endif -%}
