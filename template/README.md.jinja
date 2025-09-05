@@ -1,6 +1,7 @@
 # `{{ project_name }}` Project
 
 Summary about the project.
+{{ [10, 20] | paragraph }}
 
 ## 📚 Overview
 Example of project overview:
@@ -21,7 +22,7 @@ Example of project structure:
 {{ project_name }}/              
 ├── {{ package_slug }}/            # Top level package 
 │   ├── __init__.py                # Package init
-│   ├── plotting.py                # Plooting functionalities.                     
+│   ├── plotting.py                # Plotting functionalities.
 │   └── utilities.py               # General-purpose utilities
 │
 ├── workspace/
@@ -68,11 +69,11 @@ From the project root (**[{{ project_name }}/](.)**), run:
 python -m workspace.scripts.main
 ```
 
-This will execute the main REINFORCE simulation pipeline defined in **[main.py](workspace/scripts/main.py)**.
+This will execute the main {{ project_name }} simulation pipeline defined in **[main.py](workspace/scripts/main.py)**.
 
 ## 📈 Results
-
-The results of the REINFORCE simulations will be saved in the `workspace/plots/` directory.   
+Example of project results:
+The results of the {{ project_name }} simulations will be saved in the `workspace/plots/` directory.
 
 ## 🧪 Features
 Example of project features:
@@ -85,7 +86,10 @@ See **[LICENSE](LICENSE)** for details.
 
 ## 👤 Author
 
-- **Name:** Or Fadida
-- **Email:** [or@fadida.net](mailto:or@fadida.net)
-- **GitHub:** [orfadida2000](https://github.com/orfadida2000)
-
+- **Name:** {{ author_name }}
+{%- if author_email -%}
+- **Email:** [{{ author_email }}](mailto:{{ author_email }})
+{%- endif -%}
+{%- if author_github -%}
+- **GitHub:** [{{ author_github }}](https://github.com/{{ author_github }})
+{%- endif -%}

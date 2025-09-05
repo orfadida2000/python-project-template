@@ -1,64 +1,158 @@
-_min_copier_version: "9.0.0"
+_min_copier_version: "9.9.1"
+
+_jinja_extensions:
+  - copier_template_extensions.TemplateExtensionLoader
+  - extensions/faker.py:FakerExtension
+  - jinja2.ext.debug
 
 _subdirectory: template
+
+# Control if debug mode is enabled
+debug_mode:
+  type: bool
+  default: true
+  when: false
+
+# debug_question:
+#   type: str
+#   help: "{% debug %}"
+#   default: ""
+#   when: "{{ debug_mode }}"
 
 # Auto-detect the destination folder name as the project name (hidden prompt).
 project_name:
   type: str
   default: "{{ _copier_conf.dst_path | basename }}"
   when: false
-  help: "Name of the project (derived from the destination folder name)"
 
-# Top-level Python package (snake_case), pre trimming.
+# Top-level Python package (snake_case), pre normalization.
 package_slug_pre:
   type: str
   default: "top_package"
-  help: "Top-level Python package name (lower_case_with_underscores)"
+  help: "Enter the Top-level Python package name"
   validator: >-
-    {% if not (package_slug_pre | trim | regex_search('^[a-z_][a-z0-9_]*$')) %}
-    package_slug must start with a lowercase letter or underscore, followed by any lowercase letters, digits, or underscores.
+    {% if not (package_slug_pre | trim | lower | regex_search('^[a-z_][a-z0-9_]*$')) %}
+    The package name must start with a letter or underscore, followed by any letters, digits, or underscores.
     {% endif %}
 
-# Top-level Python package (snake_case), post trimming.
+# Top-level Python package (snake_case), post normalization.
 package_slug:
   type: str
-  default: "{{ package_slug_pre | trim }}"
+  default: "{{ package_slug_pre | trim | lower }}"
   when: false
-  help: "Top-level Python package name (lower_case_with_underscores)"
 
-# Copyright owner name, pre trimming.
+# Copyright owner name, pre normalization.
 author_name_pre:
   type: str
-  default: "Your Name"
-  help: "Copyright holder's full name"
+  default: "Jane Doe"
+  help: "Enter your name (for copyright notices) or leave empty"
   validator: >-
-    {% if not (author_name_pre | trim | regex_search('^[A-Za-zÀ-ÖØ-öø-ÿ0-9&.,\'\\-\\s]+$')) %}
-    author_name must contain only letters, digits, spaces, and allowed punctuation.
+    {# normalize #}
+    {%- set name = author_name_pre | trim -%}
+    {% if not (name | regex_search('^[A-Za-zÀ-ÖØ-öø-ÿ0-9&.,\'\\-\\s]+$')) %}
+    Your name must contain only letters, digits, spaces, and allowed punctuation.
     {% endif %}
 
-# Copyright owner name, post trimming.
+# Copyright owner name, post normalization.
 author_name:
   type: str
-  default: "{{ author_name_pre | trim }}"
+  default: "{{ author_name_pre | trim | title }}"
   when: false
-  help: "Copyright holder's full name"
 
-# Optional organization (some BSD variants mention it; safe to leave empty), pre trimming.
+author_email_pre:
+  type: str
+  placeholder: "you@example.com"
+  default: ""
+  help: |-
+    Enter your email (or leave empty).
+    Rules:
+      • Exactly one '@' separating local and domain.
+      • Local part: 1–64 chars; letters/digits/_/+/- allowed; dots only between segments
+        (no leading, trailing, or consecutive dots).
+      • Domain part: 1–255 chars; consists of dot-separated labels.
+        Each label: letters/digits/hyphen, 1–63 chars, no leading/trailing hyphen.
+    Examples:
+      valid   → alice.smith+dev@example-co.uk
+      invalid → .alice@ex.com (leading dot), alice@@ex.com (two @),
+                alice@-ex.com (label starts with '-')
+                alice@ex..com (consecutive dots)
+  validator: >-
+    {# normalize #}
+    {%- set addr = author_email_pre | trim | lower -%}
+
+    {#- allow empty input -#}
+    {%- if addr -%}
+      {#- must contain exactly one '@' -#}
+      {%- set parts = addr.split('@') -%}
+      {%- if parts | length != 2 -%}
+      Your email must contain exactly one '@' (separating local and domain parts)
+      {%- else -%}
+        {%- set local = parts[0] -%}
+        {%- set domain = parts[1] -%}
+
+        {# local length 1-64 #}
+        {%- if local | length == 0 or local | length > 64 -%}
+        The local part of your email must be 1-64 characters.
+        {%- endif -%}
+
+        {#- local charset + dot rules -#}
+        {%- if not (local | regex_search('^[a-z0-9_+-]+(?:\\.[a-z0-9_+-]+)*$')) -%}
+        The local part of your email may use letters/digits/_/+/-. It must have dots only between segments (no leading/trailing/consecutive dots).
+        {%- endif -%}
+
+        {# domain length 1-255 #}
+        {%- if domain | length == 0 or domain | length > 255 -%}
+        The domain part of your email must be 1-255 characters.
+        {%- endif -%}
+
+        {# domain labels: [a-z0-9-], 1-63 each, no leading/trailing '-', at least one dot #}
+        {%- if not (domain | regex_search('^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$')) -%}
+        The domain part of your email must have dot-separated labels using letters/digits/hyphen only. It must have no leading/trailing hyphen.
+        {%- endif -%}
+      {%- endif -%}
+    {%- endif -%}
+
+# 1a) Email (normalized) – hidden, auto-filled
+author_email:
+  type: str
+  when: false
+  default: "{{ author_email_pre | trim | lower }}"
+
+# 2) GitHub username (optional) – ask the user
+author_github_pre:
+  type: str
+  help: "Enter your GitHub username or leave empty"
+  placeholder: "your-github-username"
+  default: ""
+  validator: >-
+    {#- normalize -#}
+    {%- set name = author_github_pre | trim | lower -%}
+    {%- if name and not (name | regex_search('^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9])){0,38}$')) -%}
+    GitHub username may only contain letters, digits, and single hyphens. It must have no leading/trailing hyphen, no consecutive hyphens, and be at most 39 chars.
+    {%- endif -%}
+
+# 2a) GitHub username (normalized) – hidden, auto-filled
+author_github:
+  type: str
+  when: false
+  default: "{{ author_github_pre | trim | lower }}"
+
+# Optional organization (some BSD variants mention it; safe to leave empty), pre normalization.
 organization_pre:
   type: str
+  placeholder: "Your Organization"
   default: ""
-  help: "Organization name (optional; leave empty if not applicable)"
+  help: "Enter the organization name (optional; leave empty if not applicable)"
   validator: >-
     {% if organization_pre and not (organization_pre | trim | regex_search('^[A-Za-zÀ-ÖØ-öø-ÿ0-9&.,\'\\-\\s]+$')) %}
-    organization must contain only letters, digits, spaces, and allowed punctuation.
+    The organization name must contain only letters, digits, spaces, and allowed punctuation.
     {% endif %}
 
-# Optional organization (some BSD variants mention it; safe to leave empty), post trimming.
+# Optional organization (some BSD variants mention it; safe to leave empty), post normalization.
 organization:
   type: str
   default: "{{ organization_pre | trim }}"
   when: false
-  help: "Organization name (optional; leave empty if not applicable)"
 
 # Choose the license (must match the filenames in licenses/)
 license_key:
@@ -80,7 +174,6 @@ license_key:
 # compute the human-friendly name based on the key
 license_name:
   type: str
-  help: "Human-friendly name of the license"
   when: false
   default: >-
     {{
@@ -99,10 +192,22 @@ license_name:
     }}
 
 # Year to include in LICENSE files
+license_year_pre:
+  type: str
+  default: "{{ '%Y' | strftime }}"
+  help: "Enter the Copyright year"
+  validator: >-
+    {%- set curr_year = ('%Y' | strftime | int) -%}
+    {%- if not (license_year_pre | int) -%}
+    The license year must be a valid number.
+    {% elif (license_year_pre | int) < 1970 or (license_year_pre | int) > curr_year %}
+    The license year must be between 1970 and the current year ({{ curr_year }}).
+    {% endif %}
+
 license_year:
   type: int
-  default: "{{ '%Y' | strftime }}"
-  help: "Copyright year"
+  default: "{{ license_year_pre | int }}"
+  when: false
 
 # Whether to create a new requirements.txt file
 edit_deps:
@@ -137,19 +242,28 @@ dependencies:
 custom_deps:
   type: str
   default: ""
-  help: "Add comma-separated PyPI package names (case insensitive alphanumeric; may include ., _ or -; start/end alphanumeric). One optional space after each comma. pip will be ignored, so do not include it here."
-  when: "{{ edit_deps }}"
-  validator: >-
-    {% set NAME = '([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9._-]*[A-Za-z0-9])' %}
-    {% set TRAIL = '(?:\\r\\n|\\s)' %}
-    {% set PAT  = '^' ~ NAME ~ '(?:, ?' ~ NAME ~ ')*,?' ~ TRAIL ~ '?\\Z' %}
-    {% if custom_deps and not (custom_deps | regex_search(PAT)) %}
-    Invalid value for custom_deps.
+  help: |-
+    Add comma-separated PyPI package names (without version specs) to install additionally.
     Expected a comma-separated list of PyPI distribution names:
       - Only alphanumeric plus ".", "_" or "-"
       - Must start and end with an alphanumeric
-      - At most one ASCII space after each comma
-      - Optional single trailing whitespace OR a single CRLF pair
+      - At most one optional ASCII space after each comma
+      - Optional single trailing comma after the last package name
+      - Optional whitespace symbols (spaces, tabs) arounfd the entire string (will be trimmed)
+    "pip" and "pip3" must not be included here (they are always installed).
+  when: "{{ edit_deps }}"
+  validator: |-
+    {%- set deps = (custom_deps | trim) -%}
+    {%- set deps = deps | replace(', ', ',') -%}
+    {%- set deps = deps.rstrip(',') -%}
+    {%- set deps = deps | regex_replace('[._-]+', '-') -%}
+    {%- set deps = (deps | lower) -%}
+    {% set NAME = '([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])' %}
+    {% set PAT  = '^' ~ NAME ~ '(?:,' ~ NAME ~ ')*$' %}
+    {% if deps and not (deps | regex_search(PAT)) %}
+    Invalid value for your custom dependencies list.
+    {% elif ((',' ~ deps ~ ',') | regex_search(',pip(3)?,') ) %}
+    "pip" and "pip3" must not be included here.
     {% endif %}
 
 unique_deps:
@@ -167,11 +281,20 @@ unique_deps:
     {%- set filtered = merged | reject('in', ['pip', 'pip3']) | list -%}
     {{ filtered }}
 
+# debug_question:
+#   type: str
+#   help: |-
+#     edit_deps = {{ edit_deps }}
+#     unique_deps = {{ unique_deps }}
+#     unique_deps_len = {{ unique_deps | length }}
+#     version_spec_deps_when = {{ edit_deps and (unique_deps | length) > 0 }}
+#   default: ""
+#   when: "{{ debug_mode }}"
 
 version_spec_deps:
   type: yaml
   help: "Pick the dependencies you want to add a version specifier for (others stay unspecified, i.e. latest stable version)."
-  when: "{{ edit_deps and unique_deps }}"
+  when: "{{ edit_deps and (unique_deps | length) > 0 }}"
   choices: |-
     {% if unique_deps %}
     {%- for dep in unique_deps -%}
@@ -251,20 +374,13 @@ _exclude:
 
 # Tasks to run before finishing the writing of the project
 _tasks:
-  - command:
-      [
-        "python3",
-        "{{ _copier_conf.src_path }}/tasks/license_year_validation.py",
-        "--year",
-        "{{ license_year }}",
-      ]
   - command: 
       [
         "python3", 
         "{{ _copier_conf.src_path }}/tasks/reqs_specs_file_setup.py",
         "{{ version_spec_deps | join(',') }}",
       ]
-    when: "{{ edit_deps and version_spec_deps }}"
+    when: "{{ (version_spec_deps | length) > 0 }}"
   - command: ["python3", "{{ _copier_conf.src_path }}/tasks/venv_setup.py"]
     when: "{{ setup_venv and not upgrade_deps }}"
   - command:
