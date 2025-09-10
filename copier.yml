@@ -4,6 +4,7 @@ _jinja_extensions:
   - copier_template_extensions.TemplateExtensionLoader
   - extensions/faker.py:FakerExtension
   - extensions/git.py:GitExtension
+  - extensions/testing.py:TestingExtension
   - jinja2.ext.debug
 
 _subdirectory: template
@@ -126,11 +127,7 @@ author_github_pre:
   placeholder: "your-github-username"
   default: ""
   validator: >-
-    {#- normalize -#}
-    {%- set name = author_github_pre | trim | lower -%}
-    {%- if name and not (name | regex_search('^[a-z0-9](?:[a-z0-9]|-(?=[a-z0-9])){0,38}$')) -%}
-    GitHub username may only contain letters, digits, and single hyphens. It must have no leading/trailing hyphen, no consecutive hyphens, and be at most 39 chars.
-    {%- endif -%}
+    {{ author_github_pre | validate_github_username }}
 
 # 2a) GitHub username (normalized) – hidden, auto-filled
 author_github:
@@ -337,25 +334,8 @@ initial_branch:
   help: "Name of the initial Git branch or leave empty for 'main'"
   default: ""
   when: "{{ init_git }}"
-  validator: |
-    {% set name = (initial_branch | trim) %}
-    {{ (
-      '' if not name
-      else "'@' is reserved." if name == '@'
-      else "Branch name cannot end with '.lock'." if name.endswith('.lock')
-      else "Branch name cannot start or end with '/'." if (name.startswith('/') or name.endswith('/'))
-      else "Branch name cannot start or end with '.'." if (name.startswith('.') or name.endswith('.'))
-      else "Branch name cannot start or end with '-'." if (name.startswith('-') or name.endswith('-'))
-      else "Branch name cannot contain '//' (no consecutive slashes)." if ('//' in name)
-      else "Branch name cannot contain '..'." if ('..' in name)
-      else "Branch name cannot contain '@{'." if ('@{' in name)
-      else "Branch name cannot contain control characters or whitespace."
-           if (name | regex_search('[\\x00-\\x20\\x7f]'))
-      else "Branch name cannot contain: \\ ? [ ] *"
-           if (name | regex_search('[\\\\?\\[\\]*]'))
-      else ''
-    ) }}
-
+  validator: >-
+    {{ initial_branch | validate_branch_name }}
 
 # Files or directories that exist inside the project template that are to be excluded
 _exclude:

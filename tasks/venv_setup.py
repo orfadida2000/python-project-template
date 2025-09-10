@@ -31,15 +31,6 @@ def in_venv(proj_dir: str) -> bool:
 	except ValueError:
 		return False
 
-
-def pkg_installed(name: str) -> bool:
-	try:
-		metadata.version(name)
-		return True
-	except metadata.PackageNotFoundError:
-		return False
-
-
 def run(cmd: list[str]) -> None:
 	subprocess.check_call(cmd)
 
@@ -91,12 +82,19 @@ def main():
 	else:
 		if not os.path.exists(vdir):
 			print("No active project virtualenv; creating .venv ...")
-			venv.EnvBuilder(with_pip=True).create(vdir)
+			try:
+				venv.EnvBuilder(with_pip=True).create(vdir)
+			except Exception as e:
+				print(f"Error creating virtualenv: {e}")
+				sys.exit(0)
 		py = venv_python_path(vdir)
 		print(f"Using interpreter: {py}")
 
-	# Ensure pip is up to date
-	run([py, "-m", "pip", "install", "--upgrade", "pip"])
+	try:
+		# Ensure pip is up to date
+		run([py, "-m", "pip", "install", "--upgrade", "pip"])
+	except:
+		print("Error upgrading pip; continuing anyway.")
 
 	# Upgrade mode via CLI flag
 	upgrade = args.upgrade
@@ -115,7 +113,7 @@ def main():
 				run(cmd)
 			except subprocess.CalledProcessError as e:
 				print(f"Error installing from {req_file}: {e}")
-				sys.exit(1)
+				sys.exit(0)
 		else:
 			print(f"No packages found in {req_file}; skipping installation.")
 	else:  # copier didnt create/overwrite requirements.txt (only happens when the user specify it)

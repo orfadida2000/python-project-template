@@ -4,7 +4,7 @@ from jinja2.ext import Extension
 import re
 
 
-def validate_github_username(name: str | None = None) -> str:
+def validate_github_username(name: str) -> str:
 	"""
 	Return an error string if invalid; empty string if valid.
 	Empty input is allowed (optional field).
@@ -26,7 +26,7 @@ def validate_github_username(name: str | None = None) -> str:
 
 	return ""
 
-def validate_branch_name(name: str | None = None) -> str:
+def validate_branch_name(name: str) -> str:
 	"""
 	Validate a Git branch name (Unicode allowed; enforce Git's ref rules subset).
 
