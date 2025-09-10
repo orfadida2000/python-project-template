@@ -1,41 +1,8 @@
 import os
 import re
 import sys
-import urllib.request
-import urllib.error
+import argparse
 from enum import IntEnum
-
-
-
-
-def validate_pypi_package_exists(package_name):
-	"""
-	Checks if a PyPI package name exists.
-
-	Args:
-		package_name (str): The name of the package to check.
-
-	Returns:
-		bool: True if the package exists, False otherwise.
-	"""
-	pypi_url = f"https://pypi.org/project/{package_name}/"
-	try:
-		with urllib.request.urlopen(pypi_url) as response:
-			# If the response is successful (e.g., 200 OK), the package exists.
-			return True
-	except urllib.error.HTTPError as e:
-		if e.code == 404:
-			# A 404 error indicates the package does not exist.
-			return False
-		else:
-			# Other HTTP errors indicate a problem, but not necessarily non-existence.
-			print(f"Error accessing PyPI for {package_name}: {e}")
-			return False
-	except urllib.error.URLError as e:
-		# Network-related errors (e.g., no internet connection)
-		print(f"Network error while checking {package_name}: {e}")
-		return False
-
 
 # strict: numbers only
 STRICT_VERSION_RE = re.compile(r'^\d+(?:\.\d+)*$')
@@ -150,7 +117,7 @@ def prompt_validate_specifier(choice: int) -> tuple[bool,str]:
 	return is_valid, spec
 
 
-def ask_untill_validated(choice: int) -> str:
+def ask_until_validated(choice: int) -> str:
 	"""
 	Keep asking the user for input until the validator returns True.
 	"""
@@ -161,57 +128,76 @@ def ask_untill_validated(choice: int) -> str:
 		print("Invalid specifier format, please try again.")
 
 
-def read_reqs_file() -> list[str] | None:
+def read_reqs_file() -> list[str]:
 	if not os.path.isfile("requirements.txt"):
 		print("requirements.txt not found in current directory.")
-		return None
-	with open("requirements.txt", "r") as f:
-		packages = [line.strip() for line in f if line.strip()]
+		sys.exit(0)
+	try:
+		with open("requirements.txt", "r") as f:
+			packages = [line.strip() for line in f if line.strip()]
+	except Exception as e:
+		print(f"Error reading requirements.txt: {e}")
+		sys.exit(0)
 	return packages
 
-def validate_reqs_pkgs(packages: list[str]) -> set[str]:
-	invalid_pkgs = set()
-	for pkg in packages:
-		if not validate_pypi_package_exists(pkg):
-			print(f"Invalid package name: {pkg}. It was removed from the requirements.txt file.")
-			invalid_pkgs.add(pkg)
-	return invalid_pkgs
+def write_reqs_file(new_lines: list[str]) -> None:
+	try:
+		with open("requirements.txt", "w") as f:
+			f.write("\n".join(new_lines))
+	except Exception as e:
+		print(f"Error writing to requirements.txt: {e}")
+		sys.exit(0)
 
-def edit_reqs_file_specs(packages: list[str], version_spec_pkgs: set[str], invalid_pkgs: set[str]):
+def is_commented_line(line: str) -> bool:
+	return line.startswith("#")
+
+def edit_reqs_file_specs(lines: list[str], version_spec_pkgs: set[str]) -> list[str]:
 	new_lines = []
-	for pkg in packages:
-		if pkg in invalid_pkgs:
+	for line in lines:
+		if is_commented_line(line):
+			new_lines.append(line)
 			continue
-		elif pkg in version_spec_pkgs:
+		pkg = line  # line is a package name
+		if pkg in version_spec_pkgs: 
 			choice = prompt_choices(pkg)
-			spec = ask_untill_validated(choice)
+			spec = ask_until_validated(choice)
 		else:
 			spec = ""  # no specifier
 		new_lines.append(f"{pkg}{spec}")
-
-	with open("requirements.txt", "w") as f:
-		f.write("\n".join(new_lines))
-
-	print("\nrequirements.txt updated successfully.")
+	
+	return new_lines
 
 
-def verify_return_version_spec_pkgs() -> set[str]:
-	if len(sys.argv) < 2:
-		print("Usage: python main.py \"['numpy', 'pandas']\"")
-		sys.exit(1)
+def comma_set(s: str) -> set[str]:
+    # Explicit "" → empty set
+    if s.strip() == "":
+        return set()
+    # Split, strip, and return unique values
+    return {v.strip() for v in s.split(",") if v.strip()}
 
-	raw = sys.argv[1]            # e.g. "numpy,pandas"
-	spec_deps = raw.strip().split(",")
-	return set(spec_deps)
+def return_version_spec_pkgs() -> set[str]:
+	parser = argparse.ArgumentParser(description="Process version specifier packages.")
+	parser.add_argument("spec_pkgs", 
+					 	nargs="?",
+					 	type=comma_set,
+						default=set(), 
+						help="Comma-separated list of packages (default: empty set)")
+	args = parser.parse_args()
+	return args.spec_pkgs
 
 
 
 if __name__ == "__main__":
-	packages = read_reqs_file()
-	version_spec_pkgs = verify_return_version_spec_pkgs()
-	if packages is None:
-		sys.exit(1)
+	lines = read_reqs_file()
+	if not lines:
+		print("No packages to process.")
+		sys.exit(0)
 
-	invalid_pkgs = validate_reqs_pkgs(packages)
+	version_spec_pkgs = return_version_spec_pkgs()
+	if not version_spec_pkgs:
+		print("No packages specified for version specifiers. Exiting.")
+		sys.exit(0)
 
-	edit_reqs_file_specs(packages, version_spec_pkgs, invalid_pkgs)
+	new_lines = edit_reqs_file_specs(lines, version_spec_pkgs)
+	write_reqs_file(new_lines)
+	print("requirements.txt updated with version specifiers.")

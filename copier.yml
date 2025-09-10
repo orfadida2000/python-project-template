@@ -3,6 +3,7 @@ _min_copier_version: "9.9.1"
 _jinja_extensions:
   - copier_template_extensions.TemplateExtensionLoader
   - extensions/faker.py:FakerExtension
+  - extensions/git.py:GitExtension
   - jinja2.ext.debug
 
 _subdirectory: template
@@ -323,6 +324,38 @@ upgrade_deps:
     - ["Yes - upgrade according to version specifiers", true]
     - ["No - install only missing", false]
 
+init_git:
+  type: bool
+  help: "Initialize a local Git repository after generation?"
+  default: true
+  choices:
+    - ["Yes - create a local Git repository", true]
+    - ["No - skip Git repository initialization", false]
+
+initial_branch:
+  type: str
+  help: "Name of the initial Git branch or leave empty for 'main'"
+  default: ""
+  when: "{{ init_git }}"
+  validator: |
+    {% set name = (initial_branch | trim) %}
+    {{ (
+      '' if not name
+      else "'@' is reserved." if name == '@'
+      else "Branch name cannot end with '.lock'." if name.endswith('.lock')
+      else "Branch name cannot start or end with '/'." if (name.startswith('/') or name.endswith('/'))
+      else "Branch name cannot start or end with '.'." if (name.startswith('.') or name.endswith('.'))
+      else "Branch name cannot start or end with '-'." if (name.startswith('-') or name.endswith('-'))
+      else "Branch name cannot contain '//' (no consecutive slashes)." if ('//' in name)
+      else "Branch name cannot contain '..'." if ('..' in name)
+      else "Branch name cannot contain '@{'." if ('@{' in name)
+      else "Branch name cannot contain control characters or whitespace."
+           if (name | regex_search('[\\x00-\\x20\\x7f]'))
+      else "Branch name cannot contain: \\ ? [ ] *"
+           if (name | regex_search('[\\\\?\\[\\]*]'))
+      else ''
+    ) }}
+
 
 # Files or directories that exist inside the project template that are to be excluded
 _exclude:
@@ -377,6 +410,11 @@ _tasks:
   - command: 
       [
         "python3", 
+        "{{ _copier_conf.src_path }}/tasks/validate_pkgs_names.py"
+      ]
+  - command: 
+      [
+        "python3", 
         "{{ _copier_conf.src_path }}/tasks/reqs_specs_file_setup.py",
         "{{ version_spec_deps | join(',') }}",
       ]
@@ -390,3 +428,5 @@ _tasks:
         "--upgrade",
       ]
     when: "{{ setup_venv and upgrade_deps }}"
+  - command: ["python3", "{{ _copier_conf.src_path }}/tasks/git_setup.py", "{{ initial_branch | trim }}"]
+    when: "{{ init_git }}"
