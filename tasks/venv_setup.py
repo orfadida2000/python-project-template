@@ -77,7 +77,7 @@ def main():
 
 	# Choose interpreter
 	if active_now:
-		print("Active project virtualenv detected; using it.")
+		print("Activated project virtualenv detected; using it.")
 		py = sys.executable
 	else:
 		if not os.path.exists(vdir):
@@ -87,6 +87,8 @@ def main():
 			except Exception as e:
 				print(f"Error creating virtualenv: {e}")
 				sys.exit(0)
+		else:
+			print("Project virtualenv detected; using it.")
 		py = venv_python_path(vdir)
 		print(f"Using interpreter: {py}")
 
